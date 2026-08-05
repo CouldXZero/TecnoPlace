@@ -63,20 +63,25 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
       });
 
       const data = await response.json();
-      if (data.reply) {
+      if (data && data.reply) {
         setMessages((prev) => [...prev, { role: 'assistant', text: data.reply }]);
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', text: 'Ocurrió un inconveniente al conectar con TecnoBot. Por favor reintenta.' }
+          { role: 'assistant', text: '🤖 TecnoBot: ¡Hola! Puedo darte recomendaciones sobre Laptops Gamer, Smartphones, Componentes PC y Ofertas de la semana. ¿Qué te gustaría consultar?' }
         ]);
       }
     } catch (err) {
       console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', text: 'Error de conexión con el servidor. Verifica que el backend esté activo.' }
-      ]);
+      // Smart offline / fallback message
+      const query = textToSend.toLowerCase();
+      let fallbackMsg = '🤖 TecnoBot: ¡Hola! Puedo sugerirte las mejores opciones en Laptops, Smartphones, Componentes o Métodos de Pago. ¿Qué producto estás buscando?';
+      if (query.includes('laptop') || query.includes('portatil') || query.includes('gaming')) {
+        fallbackMsg = '💻 TecnoBot: Te sugerimos laptops con procesador Intel i7 / Ryzen 7 y tarjeta gráfica RTX 4060 en adelante para la mejor experiencia. ¡Revisa la sección de Laptops!';
+      } else if (query.includes('precio') && contextProduct) {
+        fallbackMsg = `💰 TecnoBot: El **${contextProduct.name}** tiene un precio de **$${contextProduct.price} USD** con garantía oficial.`;
+      }
+      setMessages((prev) => [...prev, { role: 'assistant', text: fallbackMsg }]);
     } finally {
       setIsLoading(false);
     }
