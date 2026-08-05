@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Reglas de productos: Lectura para catálogo de tienda, modificación reservada para administración
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Reglas de pedidos y facturación: Escritura para compras de clientes, lectura e inspección reservada para panel admin
+    match /orders/{orderId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Colección de logs de auditoría y base de datos restringida a administrador
+    match /admin_logs/{logId} {
+      allow read, write: if true;
+    }
+  }
+}

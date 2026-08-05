@@ -1,0 +1,6 @@
+{
+  "name": "TecnoPlace - E-Commerce Tecnológico",
+  "description": "Tienda en línea completa de productos tecnológicos con catálogo, comparador de specs, carrito, pago en línea, panel de administración, simulación de app móvil y asistente IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

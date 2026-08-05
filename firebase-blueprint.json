@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "products": {
+      "title": "Products",
+      "description": "Catalog of tech products available in the store",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "category": { "type": "string" },
+        "brand": { "type": "string" },
+        "image": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "stock": { "type": "number" },
+        "isDeal": { "type": "boolean" },
+        "isNew": { "type": "boolean" },
+        "specs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["name", "price", "category", "stock"]
+    },
+    "orders": {
+      "title": "Orders",
+      "description": "Store customer orders and invoices",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "tax": { "type": "number" },
+        "status": { "type": "string" },
+        "trackingCode": { "type": "string" },
+        "items": { "type": "array" },
+        "shippingAddress": { "type": "object" },
+        "billingInfo": { "type": "object" },
+        "paymentMethod": { "type": "object" }
+      },
+      "required": ["totalAmount", "status", "items"]
+    }
+  }
+}
