@@ -356,8 +356,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="hidden md:flex items-center gap-1.5 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <a
+            href="https://console.firebase.google.com/project/gen-lang-client-0930371438/firestore/databases/ai-studio-tecnoplaceecomme-03465408-3c1c-40b1-880c-6723e17ae6ac/data"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2 border border-amber-400 cursor-pointer active:scale-95"
+            title="Abrir Consola de Firebase Firestore"
+          >
+            <Database className="w-4 h-4 text-slate-950 fill-amber-950/20" />
+            <span>Base de Datos Firebase</span>
+          </a>
+
+          <div className="hidden lg:flex items-center gap-1.5 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800">
             <UserCheck className="w-4 h-4 text-emerald-600" />
             <span>CouldXZero</span>
           </div>
