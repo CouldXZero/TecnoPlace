@@ -43,6 +43,39 @@
         "paymentMethod": { "type": "object" }
       },
       "required": ["totalAmount", "status", "items"]
+    },
+    "customers": {
+      "title": "Customers",
+      "description": "Registered store customers in TecnoPlace e-commerce",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "cedulaOrRuc": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "password": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string" },
+        "totalOrders": { "type": "number" }
+      },
+      "required": ["name", "email"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "products",
+      "description": "Catalog of products"
+    },
+    "/orders/{orderId}": {
+      "schema": "orders",
+      "description": "Store orders and invoices"
+    },
+    "/customers/{customerId}": {
+      "schema": "customers",
+      "description": "Registered customer records"
     }
   }
 }

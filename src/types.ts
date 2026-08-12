@@ -105,6 +105,20 @@ export interface Coupon {
   description: string;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  cedulaOrRuc: string;
+  address: string;
+  city: string;
+  password?: string;
+  createdAt: string;
+  status: 'active' | 'inactive';
+  totalOrders?: number;
+}
+
 export interface UserProfile {
   id: string;
   name: string;

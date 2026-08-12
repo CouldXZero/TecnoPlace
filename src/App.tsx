@@ -18,6 +18,7 @@ import {
   CartItem,
   Coupon,
   Order,
+  Customer,
   AppMode,
   FilterState
 } from './types';
@@ -27,6 +28,11 @@ import {
   saveProductToFirestore,
   deleteProductFromFirestore
 } from './services/productService';
+import {
+  subscribeToCustomers,
+  MOCK_CUSTOMERS
+} from './services/firebaseStore';
+import { CustomerModal } from './components/CustomerModal';
 import { Header } from './components/Header';
 import { HeroBanner } from './components/HeroBanner';
 import { ProductCard } from './components/ProductCard';
@@ -48,12 +54,23 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
 
   // Realtime Firestore Products Sync
   useEffect(() => {
     const unsubscribe = subscribeProducts((firestoreProducts) => {
       if (firestoreProducts && firestoreProducts.length > 0) {
         setProducts(firestoreProducts);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Realtime Firestore Customers Sync
+  useEffect(() => {
+    const unsubscribe = subscribeToCustomers((firestoreCustomers) => {
+      if (firestoreCustomers && firestoreCustomers.length > 0) {
+        setCustomers(firestoreCustomers);
       }
     });
     return () => unsubscribe();
@@ -69,6 +86,7 @@ export default function App() {
   const [isAIBotOpen, setIsAIBotOpen] = useState<boolean>(false);
   const [isWeeklyDealsOpen, setIsWeeklyDealsOpen] = useState<boolean>(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
   const [aiProductContext, setAiProductContext] = useState<Product | null>(null);
 
   // Filters State
@@ -239,6 +257,7 @@ export default function App() {
           onOpenWeeklyDeals={() => setIsWeeklyDealsOpen(true)}
           isMobilePreview={isMobilePreview}
           onToggleMobilePreview={() => setIsMobilePreview(!isMobilePreview)}
+          onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
         />
 
         {/* Main Content Router View */}
@@ -247,6 +266,7 @@ export default function App() {
             <AdminPanel
               products={products}
               orders={orders}
+              customers={customers}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
@@ -522,6 +542,13 @@ export default function App() {
           availableBrands={availableBrands}
           totalResultsCount={filteredProducts.length}
           onResetFilters={resetFilters}
+        />
+
+        {/* Customer Registration & Login Modal */}
+        <CustomerModal
+          isOpen={isCustomerModalOpen}
+          onClose={() => setIsCustomerModalOpen(false)}
+          existingCustomers={customers}
         />
 
         {/* Sticky Mobile Navigation Bar (Android & iOS) */}

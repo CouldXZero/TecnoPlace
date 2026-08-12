@@ -42,6 +42,7 @@ interface HeaderProps {
   onOpenWeeklyDeals: () => void;
   isMobilePreview: boolean;
   onToggleMobilePreview: () => void;
+  onOpenCustomerModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -56,7 +57,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAIBot,
   onOpenWeeklyDeals,
   isMobilePreview,
-  onToggleMobilePreview
+  onToggleMobilePreview,
+  onOpenCustomerModal
 }) => {
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);

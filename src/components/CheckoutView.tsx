@@ -15,13 +15,17 @@ import {
   UserCheck,
   UserX,
   Receipt,
-  AlertCircle
+  AlertCircle,
+  Database,
+  Mail,
+  Phone
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { QRCodeSVG } from 'qrcode.react';
-import { CartItem, Coupon, Order } from '../types';
+import { CartItem, Coupon, Order, Customer } from '../types';
 import { formatPrice } from '../data/mockCoupons';
 import { generateOrderPDF } from '../services/pdfGenerator';
+import { saveCustomerToFirestore, saveOrderToFirestore } from '../services/firebaseStore';
 
 interface CheckoutViewProps {
   cartItems: CartItem[];
@@ -38,26 +42,30 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Form State
+  // Form State (Envío y Contactos) - Inicialmente vacíos
   const [shippingInfo, setShippingInfo] = useState({
-    fullName: 'Alejandro Valdés',
-    street: 'Av. Paseo de la Reforma #405, Apt 12B',
-    city: 'Ciudad de México',
-    state: 'CDMX',
-    postalCode: '06500',
-    country: 'México',
-    phone: '+52 55 8492 1029'
+    fullName: '',
+    email: '',
+    cedulaOrRuc: '',
+    phone: '',
+    street: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: ''
   });
 
-  // Billing & Invoice State (Consumidor Final vs Registrar Cliente)
+  const [isSavedInDatabase, setIsSavedInDatabase] = useState<boolean>(false);
+
+  // Billing & Invoice State
   const [isConsumidorFinal, setIsConsumidorFinal] = useState<boolean>(true);
   const [billingData, setBillingData] = useState({
     taxIdType: 'RUC' as 'RUC' | 'CEDULA' | 'DNI' | 'PASAPORTE' | 'CF',
-    taxId: '1726384920001',
-    name: 'Alejandro Valdés',
-    email: 'alejandro.valdes@email.com',
-    phone: '+52 55 8492 1029',
-    address: 'Av. Paseo de la Reforma #405, CDMX'
+    taxId: '',
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
   });
 
   const [deliveryMethod, setDeliveryMethod] = useState<'express' | 'pickup' | 'standard'>('express');
@@ -107,6 +115,28 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const tax = Math.round((subtotal - discountAmount) * 0.16);
   const totalAmount = Math.max(0, subtotal - discountAmount + shippingCost + tax);
 
+  const handleSaveCustomerToFirestore = async () => {
+    const customerRecord: Customer = {
+      id: `cust-${shippingInfo.phone.replace(/[^0-9]/g, '') || Date.now()}`,
+      name: shippingInfo.fullName,
+      email: shippingInfo.email || billingData.email || 'cliente@tecnoplace.com',
+      phone: shippingInfo.phone,
+      cedulaOrRuc: shippingInfo.cedulaOrRuc || billingData.taxId || '1726384920',
+      address: shippingInfo.street,
+      city: shippingInfo.city,
+      createdAt: new Date().toISOString(),
+      status: 'active',
+      totalOrders: 1
+    };
+
+    try {
+      await saveCustomerToFirestore(customerRecord);
+      setIsSavedInDatabase(true);
+    } catch (err) {
+      console.error('Error saving customer info to Firestore:', err);
+    }
+  };
+
   const handlePlaceOrder = () => {
     // Fire confetti celebration
     confetti({
@@ -115,13 +145,15 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       origin: { y: 0.6 }
     });
 
+    handleSaveCustomerToFirestore();
+
     const billingInfo = isConsumidorFinal
       ? {
           isConsumidorFinal: true,
           taxIdType: 'CF' as const,
           taxId: '9999999999',
           name: 'Consumidor Final',
-          email: billingData.email || 'consumidorfinal@tecnoplace.com',
+          email: billingData.email || shippingInfo.email || 'consumidorfinal@tecnoplace.com',
           phone: shippingInfo.phone,
           address: `${shippingInfo.street}, ${shippingInfo.city}`
         }
@@ -130,7 +162,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           taxIdType: billingData.taxIdType,
           taxId: billingData.taxId || '1726384920001',
           name: billingData.name || shippingInfo.fullName,
-          email: billingData.email || 'cliente@ejemplo.com',
+          email: billingData.email || shippingInfo.email || 'cliente@ejemplo.com',
           phone: billingData.phone || shippingInfo.phone,
           address: billingData.address || `${shippingInfo.street}, ${shippingInfo.city}`
         };
@@ -174,6 +206,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       trackingCode: `TRK-2026-${Math.floor(10000 + Math.random() * 90000)}`,
       estimatedDelivery: '3 de Agosto de 2026 (Mañana)'
     };
+
+    saveOrderToFirestore(newOrder).catch((err) => console.error('Error saving order to Firestore:', err));
 
     setCompletedOrder(newOrder);
     onOrderCompleted(newOrder);
@@ -354,42 +388,74 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Nombre Completo del Destinatario</label>
+                    <label className="block text-slate-700 mb-1 font-semibold">Nombre Completo del Destinatario *</label>
                     <input
                       type="text"
                       value={shippingInfo.fullName}
                       onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
+                      placeholder="Ej: Gabriela Silva"
                       className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                      required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Teléfono de Contacto</label>
+                    <label className="block text-slate-700 mb-1 font-semibold">Teléfono de Contacto *</label>
                     <input
                       type="text"
                       value={shippingInfo.phone}
                       onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
+                      placeholder="Ej: +593 99 123 4567"
                       className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-700 mb-1 font-semibold">Dirección de Calle y Número</label>
-                    <input
-                      type="text"
-                      value={shippingInfo.street}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, street: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                      required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Ciudad / Municipio</label>
+                    <label className="block text-slate-700 mb-1 font-semibold">Correo Electrónico *</label>
+                    <input
+                      type="email"
+                      value={shippingInfo.email}
+                      onChange={(e) => setShippingInfo({ ...shippingInfo, email: e.target.value })}
+                      placeholder="cliente@ejemplo.com"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 mb-1 font-semibold">Cédula / RUC *</label>
+                    <input
+                      type="text"
+                      value={shippingInfo.cedulaOrRuc}
+                      onChange={(e) => setShippingInfo({ ...shippingInfo, cedulaOrRuc: e.target.value })}
+                      placeholder="1726384920"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-700 mb-1 font-semibold">Dirección de Calle y Número *</label>
+                    <input
+                      type="text"
+                      value={shippingInfo.street}
+                      onChange={(e) => setShippingInfo({ ...shippingInfo, street: e.target.value })}
+                      placeholder="Av. 10 de Agosto N34-12 y Mariana de Jesús"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 mb-1 font-semibold">Ciudad / Municipio *</label>
                     <input
                       type="text"
                       value={shippingInfo.city}
                       onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                      placeholder="Quito"
                       className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                      required
                     />
                   </div>
 
@@ -399,17 +465,33 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       type="text"
                       value={shippingInfo.postalCode}
                       onChange={(e) => setShippingInfo({ ...shippingInfo, postalCode: e.target.value })}
+                      placeholder="170150"
                       className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
                     />
                   </div>
                 </div>
+
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Los datos de envío y contacto se guardarán en la base de datos de <strong>Firebase Firestore</strong> (`/customers`).</span>
+                  </div>
+                  {isSavedInDatabase && (
+                    <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                      ✓ Guardado
+                    </span>
+                  )}
+                </div>
               </div>
 
               <button
-                onClick={() => setStep(2)}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-sm transition-all"
+                onClick={async () => {
+                  await handleSaveCustomerToFirestore();
+                  setStep(2);
+                }}
+                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2"
               >
-                Continuar a Método de Entrega
+                <span>Continuar a Método de Entrega</span>
               </button>
             </div>
           )}

@@ -9,8 +9,37 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Product, Order } from '../types';
+import { Product, Order, Customer } from '../types';
 import { MOCK_PRODUCTS, MOCK_ORDERS } from '../data/mockProducts';
+
+export const MOCK_CUSTOMERS: Customer[] = [
+  {
+    id: 'cust-101',
+    name: 'Carlos Mendoza',
+    email: 'carlos.mendoza@gmail.com',
+    phone: '+593 99 123 4567',
+    cedulaOrRuc: '1723456789',
+    address: 'Av. Amazonas N24-102 y Orellana',
+    city: 'Quito',
+    password: 'password123',
+    createdAt: '2026-07-15T10:30:00Z',
+    status: 'active',
+    totalOrders: 3
+  },
+  {
+    id: 'cust-102',
+    name: 'María Fernanda Gómez',
+    email: 'maria.gomez@hotmail.com',
+    phone: '+593 98 765 4321',
+    cedulaOrRuc: '0912345678',
+    address: 'Calle 9 de Octubre 412 y Chile',
+    city: 'Guayaquil',
+    password: 'password123',
+    createdAt: '2026-07-28T14:20:00Z',
+    status: 'active',
+    totalOrders: 1
+  }
+];
 
 // Subscribe to Products collection with automatic initial seeding
 export function subscribeToProducts(onProductsUpdated: (products: Product[]) => void) {
@@ -123,6 +152,63 @@ export async function updateOrderStatusInFirestore(orderId: string, status: Orde
     await updateDoc(docRef, { status });
   } catch (err) {
     console.error('Error updating order status in Firestore:', err);
+    throw err;
+  }
+}
+
+// Subscribe to Customers collection with automatic initial seeding
+export function subscribeToCustomers(onCustomersUpdated: (customers: Customer[]) => void) {
+  const customersRef = collection(db, 'customers');
+
+  return onSnapshot(
+    customersRef,
+    async (snapshot) => {
+      if (snapshot.empty) {
+        console.log('Seeding initial customers into Firestore database...');
+        try {
+          const batch = writeBatch(db);
+          MOCK_CUSTOMERS.forEach((cust) => {
+            const docRef = doc(db, 'customers', cust.id);
+            batch.set(docRef, cust);
+          });
+          await batch.commit();
+        } catch (err) {
+          console.error('Error seeding customers to Firestore:', err);
+          onCustomersUpdated(MOCK_CUSTOMERS);
+        }
+      } else {
+        const loadedCustomers: Customer[] = [];
+        snapshot.forEach((doc) => {
+          loadedCustomers.push(doc.data() as Customer);
+        });
+        onCustomersUpdated(loadedCustomers);
+      }
+    },
+    (error) => {
+      console.error('Firestore customers subscription error:', error);
+      onCustomersUpdated(MOCK_CUSTOMERS);
+    }
+  );
+}
+
+// Save or Update Customer in Firestore
+export async function saveCustomerToFirestore(customer: Customer): Promise<void> {
+  try {
+    const docRef = doc(db, 'customers', customer.id);
+    await setDoc(docRef, customer, { merge: true });
+  } catch (err) {
+    console.error('Error saving customer to Firestore:', err);
+    throw err;
+  }
+}
+
+// Delete Customer from Firestore
+export async function deleteCustomerFromFirestore(customerId: string): Promise<void> {
+  try {
+    const docRef = doc(db, 'customers', customerId);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.error('Error deleting customer from Firestore:', err);
     throw err;
   }
 }
