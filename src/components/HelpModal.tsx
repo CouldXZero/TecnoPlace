@@ -20,6 +20,8 @@ import {
   MapPin
 } from 'lucide-react';
 
+import { generateSystemDocsPDF } from '../services/pdfGenerator';
+
 export type HelpTabType =
   | 'centro-ayuda'
   | 'control-seguridad'
@@ -185,6 +187,17 @@ export const HelpModal: React.FC<HelpModalProps> = ({
               </div>
               <ChevronRight className="w-3.5 h-3.5 opacity-70" />
             </button>
+
+            <div className="pt-3 mt-3 border-t border-slate-200">
+              <button
+                onClick={() => generateSystemDocsPDF()}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                title="Descargar Documentación PDF del Sistema"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Descargar Doc. PDF</span>
+              </button>
+            </div>
           </div>
 
           {/* Tab Content Display Area */}
