@@ -512,24 +512,24 @@ export const generateSystemDocsPDF = () => {
 
   const updates = [
     {
-      title: '1. Selector Inteligente de Cliente en Checkout (Cliente Nuevo vs. Existente)',
-      desc: 'En el Paso 1 de Dirección y Contacto se incorporó la pestaña para alternar entre registrar un cliente nuevo (con guardado directo en Firebase Firestore) o seleccionar un cliente existente desde la base de datos con autocompletado en un solo clic.'
+      title: '1. Autocompletado Predictivo de Clientes por Nombre en Dirección de Envío',
+      desc: 'En el Paso 1 de Dirección y Contacto se simplificó el flujo eliminando pestañas accesorias: ahora, al escribir o enfocar el campo "Nombre Completo del Destinatario", se despliegan automáticamente los clientes guardados en Firebase Firestore. Al hacer clic, se autocompletan instantáneamente teléfono, correo, cédula/RUC, dirección y ciudad.'
     },
     {
-      title: '2. Buscador en Tiempo Real de Clientes Registrados',
-      desc: 'Dentro de la vista de Cliente Existente en el Checkout se implementó un motor de filtrado instantáneo que permite buscar por nombre, cédula/RUC, teléfono, correo electrónico o ciudad, con opción directa de registrar como nuevo si no se encuentra.'
+      title: '2. Formulario Único y Dinámico con Guardado Automático en Firestore',
+      desc: 'Toda orden completada o cliente ingresado en el checkout se sincroniza de forma transparente con la colección `/customers` de Firebase Firestore, permitiendo reutilizar los datos en compras futuras sin duplicar esfuerzos.'
     },
     {
       title: '3. Modificación y Edición de Clientes desde el Panel Admin',
-      desc: 'En la sección de Clientes del Panel de Administración se añadió la funcionalidad de modificar directamente los datos de cualquier cliente (nombre, correo, teléfono, cédula/RUC, dirección, ciudad y estado) sincronizando los cambios en Firebase Firestore.'
+      desc: 'En la sección de Clientes del Panel de Administración se añadió la funcionalidad de modificar directamente los datos de cualquier cliente (nombre, correo, teléfono, cédula/RUC, dirección, ciudad y estado) sincronizando los cambios en tiempo real con Firebase Firestore.'
     },
     {
       title: '4. Enfoque Automático (Autofocus) en Login de Administración',
       desc: 'Al abrir el formulario de ingreso del Panel Admin, el cursor se posiciona de forma automática en el campo "Usuario Administrador". Asimismo, al hacer clic en "Volver a intentar" tras un fallo de autenticación, los campos se vacían y el foco se reasigna inmediatamente.'
     },
     {
-      title: '5. Optimización de Notificaciones y Flujo Limpio',
-      desc: 'Se depuraron los textos redundantes e instrucciones accesorias en las ventanas modales de error y notificación, logrando una interfaz limpia y centrada en la acción inmediata.'
+      title: '5. Asistente IA TecnoBot con Motor de Resiliencia (Fallback Engine)',
+      desc: 'TecnoBot procesa consultas sobre productos, precios, garantías y métodos de pago con contingencia automática para asegurar 100% de disponibilidad continua incluso ante límites o desconexiones del servicio externo.'
     }
   ];
 
