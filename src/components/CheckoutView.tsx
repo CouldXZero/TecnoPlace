@@ -14,6 +14,10 @@ import {
   FileText,
   UserCheck,
   UserX,
+  UserPlus,
+  Users,
+  Search,
+  Check,
   Receipt,
   AlertCircle,
   Database,
@@ -25,11 +29,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { CartItem, Coupon, Order, Customer } from '../types';
 import { formatPrice } from '../data/mockCoupons';
 import { generateOrderPDF } from '../services/pdfGenerator';
-import { saveCustomerToFirestore, saveOrderToFirestore } from '../services/firebaseStore';
+import { saveCustomerToFirestore, saveOrderToFirestore, MOCK_CUSTOMERS } from '../services/firebaseStore';
 
 interface CheckoutViewProps {
   cartItems: CartItem[];
   appliedCoupon: Coupon | null;
+  customers?: Customer[];
   onBackToCart: () => void;
   onOrderCompleted: (order: Order) => void;
 }
@@ -37,10 +42,17 @@ interface CheckoutViewProps {
 export const CheckoutView: React.FC<CheckoutViewProps> = ({
   cartItems,
   appliedCoupon,
+  customers = MOCK_CUSTOMERS,
   onBackToCart,
   onOrderCompleted
 }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Customer Type Choice: 'new' | 'existing'
+  const [customerType, setCustomerType] = useState<'new' | 'existing'>('new');
+  const [customerSearchQuery, setCustomerSearchQuery] = useState<string>('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [step1Error, setStep1Error] = useState<string | null>(null);
 
   // Form State (Envío y Contactos) - Inicialmente vacíos
   const [shippingInfo, setShippingInfo] = useState({
@@ -117,7 +129,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
   const handleSaveCustomerToFirestore = async () => {
     const customerRecord: Customer = {
-      id: `cust-${shippingInfo.phone.replace(/[^0-9]/g, '') || Date.now()}`,
+      id: selectedCustomerId || `cust-${shippingInfo.phone.replace(/[^0-9]/g, '') || Date.now()}`,
       name: shippingInfo.fullName,
       email: shippingInfo.email || billingData.email || 'cliente@tecnoplace.com',
       phone: shippingInfo.phone,
@@ -135,6 +147,61 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     } catch (err) {
       console.error('Error saving customer info to Firestore:', err);
     }
+  };
+
+  const activeCustomers = customers || [];
+  const filteredCustomers = activeCustomers.filter((c) => {
+    if (!customerSearchQuery.trim()) return true;
+    const q = customerSearchQuery.toLowerCase().trim();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      (c.cedulaOrRuc && c.cedulaOrRuc.toLowerCase().includes(q)) ||
+      (c.email && c.email.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.includes(q)) ||
+      (c.city && c.city.toLowerCase().includes(q)) ||
+      (c.address && c.address.toLowerCase().includes(q))
+    );
+  });
+
+  const handleSelectCustomer = (cust: Customer) => {
+    setSelectedCustomerId(cust.id);
+    setShippingInfo({
+      fullName: cust.name,
+      email: cust.email || '',
+      cedulaOrRuc: cust.cedulaOrRuc || '',
+      phone: cust.phone || '',
+      street: cust.address || '',
+      city: cust.city || 'Quito',
+      state: '',
+      postalCode: '',
+      country: 'Ecuador'
+    });
+    setStep1Error(null);
+  };
+
+  const handleContinueStep1 = async () => {
+    if (!shippingInfo.fullName.trim()) {
+      setStep1Error('Por favor ingresa o selecciona el nombre completo del cliente/destinatario.');
+      return;
+    }
+    if (!shippingInfo.phone.trim()) {
+      setStep1Error('Por favor ingresa o selecciona un teléfono de contacto.');
+      return;
+    }
+    if (!shippingInfo.street.trim()) {
+      setStep1Error('Por favor ingresa la dirección de entrega (calle y número).');
+      return;
+    }
+    if (!shippingInfo.city.trim()) {
+      setStep1Error('Por favor ingresa la ciudad de entrega.');
+      return;
+    }
+
+    setStep1Error(null);
+    if (customerType === 'new') {
+      await handleSaveCustomerToFirestore();
+    }
+    setStep(2);
   };
 
   const handlePlaceOrder = () => {
@@ -380,115 +447,319 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               </div>
 
               {/* Shipping Address Section */}
-              <div className="space-y-4">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 border-t border-slate-100 pt-4">
-                  <MapPin className="w-5 h-5 text-blue-600" />
-                  <span>Dirección de Envío y Contacto</span>
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Nombre Completo del Destinatario *</label>
-                    <input
-                      type="text"
-                      value={shippingInfo.fullName}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
-                      placeholder="Ej: Gabriela Silva"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Teléfono de Contacto *</label>
-                    <input
-                      type="text"
-                      value={shippingInfo.phone}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
-                      placeholder="Ej: +593 99 123 4567"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Correo Electrónico *</label>
-                    <input
-                      type="email"
-                      value={shippingInfo.email}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, email: e.target.value })}
-                      placeholder="cliente@ejemplo.com"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Cédula / RUC *</label>
-                    <input
-                      type="text"
-                      value={shippingInfo.cedulaOrRuc}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, cedulaOrRuc: e.target.value })}
-                      placeholder="1726384920"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-700 mb-1 font-semibold">Dirección de Calle y Número *</label>
-                    <input
-                      type="text"
-                      value={shippingInfo.street}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, street: e.target.value })}
-                      placeholder="Av. 10 de Agosto N34-12 y Mariana de Jesús"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Ciudad / Municipio *</label>
-                    <input
-                      type="text"
-                      value={shippingInfo.city}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
-                      placeholder="Quito"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 mb-1 font-semibold">Código Postal</label>
-                    <input
-                      type="text"
-                      value={shippingInfo.postalCode}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, postalCode: e.target.value })}
-                      placeholder="170150"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
-                    />
-                  </div>
+              <div className="space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-blue-600" />
+                    <span>Dirección de Envío y Contacto</span>
+                  </h2>
+                  <span className="text-xs text-slate-500 font-medium">Paso 1 de 4</span>
                 </div>
 
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800">
-                  <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Los datos de envío y contacto se guardarán en la base de datos de <strong>Firebase Firestore</strong> (`/customers`).</span>
-                  </div>
-                  {isSavedInDatabase && (
-                    <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                      ✓ Guardado
-                    </span>
-                  )}
+                {/* Option Tabs: Cliente Nuevo vs Cliente Existente */}
+                <div className="bg-slate-100 p-1.5 rounded-2xl flex gap-1.5 border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerType('new');
+                      setSelectedCustomerId(null);
+                      setStep1Error(null);
+                    }}
+                    className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      customerType === 'new'
+                        ? 'bg-white text-blue-600 shadow-sm border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Cliente Nuevo (Ingresar Datos)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerType('existing');
+                      setStep1Error(null);
+                    }}
+                    className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      customerType === 'existing'
+                        ? 'bg-white text-blue-600 shadow-sm border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Cliente Existente ({activeCustomers.length})</span>
+                  </button>
                 </div>
+
+                {/* CLIENTE EXISTENTE VIEW */}
+                {customerType === 'existing' && (
+                  <div className="space-y-4 animate-in fade-in">
+                    {/* Search Bar */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Buscar Cliente Registrado
+                      </label>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={customerSearchQuery}
+                          onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                          placeholder="Buscar por nombre, cédula/RUC, teléfono o correo..."
+                          className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                        />
+                        {customerSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomerSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold p-0.5"
+                            title="Limpiar búsqueda"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Customers List / Grid */}
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {filteredCustomers.length === 0 ? (
+                        <div className="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-6 text-center text-slate-500 space-y-3">
+                          <UserX className="w-8 h-8 text-slate-400 mx-auto" />
+                          <div className="text-xs">
+                            <p className="font-bold text-slate-700">No se encontró ningún cliente registrado</p>
+                            {customerSearchQuery ? (
+                              <p className="text-slate-500 mt-0.5">
+                                No hay coincidencias para &quot;<span className="font-semibold text-slate-800">{customerSearchQuery}</span>&quot;.
+                              </p>
+                            ) : (
+                              <p className="text-slate-500 mt-0.5">Aún no hay clientes guardados en la base de datos.</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomerType('new');
+                              if (customerSearchQuery.trim()) {
+                                setShippingInfo({ ...shippingInfo, fullName: customerSearchQuery.trim() });
+                              }
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Ingresar como Cliente Nuevo</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {filteredCustomers.map((cust) => {
+                            const isSelected = selectedCustomerId === cust.id;
+                            return (
+                              <div
+                                key={cust.id}
+                                onClick={() => handleSelectCustomer(cust)}
+                                className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-left relative ${
+                                  isSelected
+                                    ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/20 shadow-xs'
+                                    : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black ${
+                                      isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                                    }`}>
+                                      {cust.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-xs text-slate-900">{cust.name}</h4>
+                                      <span className="text-[10px] text-slate-500 font-mono">CI/RUC: {cust.cedulaOrRuc || 'N/A'}</span>
+                                    </div>
+                                  </div>
+                                  {isSelected && (
+                                    <span className="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <Check className="w-2.5 h-2.5" />
+                                      <span>Seleccionado</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="mt-2.5 pt-2 border-t border-slate-200/60 text-[11px] text-slate-600 space-y-0.5">
+                                  <div className="flex items-center gap-1 truncate">
+                                    <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span>{cust.phone}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 truncate">
+                                    <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span>{cust.email}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 truncate text-slate-500">
+                                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span>{cust.address ? `${cust.address}, ${cust.city}` : cust.city || 'Ecuador'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selected Customer Details Confirmation / Preview */}
+                    {selectedCustomerId && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                            <span>Datos seleccionados para entrega:</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCustomerId(null);
+                              setShippingInfo({
+                                fullName: '',
+                                email: '',
+                                cedulaOrRuc: '',
+                                phone: '',
+                                street: '',
+                                city: '',
+                                state: '',
+                                postalCode: '',
+                                country: ''
+                              });
+                            }}
+                            className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold underline cursor-pointer"
+                          >
+                            Deseleccionar
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700 bg-white/70 p-2.5 rounded-xl border border-blue-100">
+                          <div><span className="font-semibold text-slate-900">Destinatario:</span> {shippingInfo.fullName}</div>
+                          <div><span className="font-semibold text-slate-900">Cédula/RUC:</span> {shippingInfo.cedulaOrRuc}</div>
+                          <div><span className="font-semibold text-slate-900">Teléfono:</span> {shippingInfo.phone}</div>
+                          <div><span className="font-semibold text-slate-900">Correo:</span> {shippingInfo.email}</div>
+                          <div className="sm:col-span-2"><span className="font-semibold text-slate-900">Dirección:</span> {shippingInfo.street}, {shippingInfo.city}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* CLIENTE NUEVO FORM (Or details editor when creating new) */}
+                {customerType === 'new' && (
+                  <div className="space-y-4 animate-in fade-in">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <label className="block text-slate-700 mb-1 font-semibold">Nombre Completo del Destinatario *</label>
+                        <input
+                          type="text"
+                          value={shippingInfo.fullName}
+                          onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
+                          placeholder="Ej: Gabriela Silva"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-700 mb-1 font-semibold">Teléfono de Contacto *</label>
+                        <input
+                          type="text"
+                          value={shippingInfo.phone}
+                          onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
+                          placeholder="Ej: +593 99 123 4567"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-700 mb-1 font-semibold">Correo Electrónico *</label>
+                        <input
+                          type="email"
+                          value={shippingInfo.email}
+                          onChange={(e) => setShippingInfo({ ...shippingInfo, email: e.target.value })}
+                          placeholder="cliente@ejemplo.com"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-700 mb-1 font-semibold">Cédula / RUC *</label>
+                        <input
+                          type="text"
+                          value={shippingInfo.cedulaOrRuc}
+                          onChange={(e) => setShippingInfo({ ...shippingInfo, cedulaOrRuc: e.target.value })}
+                          placeholder="1726384920"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                          required
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-slate-700 mb-1 font-semibold">Dirección de Calle y Número *</label>
+                        <input
+                          type="text"
+                          value={shippingInfo.street}
+                          onChange={(e) => setShippingInfo({ ...shippingInfo, street: e.target.value })}
+                          placeholder="Av. 10 de Agosto N34-12 y Mariana de Jesús"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-700 mb-1 font-semibold">Ciudad / Municipio *</label>
+                        <input
+                          type="text"
+                          value={shippingInfo.city}
+                          onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                          placeholder="Quito"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-700 mb-1 font-semibold">Código Postal</label>
+                        <input
+                          type="text"
+                          value={shippingInfo.postalCode}
+                          onChange={(e) => setShippingInfo({ ...shippingInfo, postalCode: e.target.value })}
+                          placeholder="170150"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-blue-500 font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800">
+                      <div className="flex items-center gap-2">
+                        <Database className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Este nuevo cliente quedará guardado automáticamente en <strong>Firebase Firestore</strong> (`/customers`).</span>
+                      </div>
+                      {isSavedInDatabase && (
+                        <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                          ✓ Guardado
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 1 Error banner */}
+                {step1Error && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-3 text-xs flex items-center gap-2 font-medium animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{step1Error}</span>
+                  </div>
+                )}
               </div>
 
               <button
-                onClick={async () => {
-                  await handleSaveCustomerToFirestore();
-                  setStep(2);
-                }}
+                onClick={handleContinueStep1}
                 className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2"
               >
                 <span>Continuar a Método de Entrega</span>

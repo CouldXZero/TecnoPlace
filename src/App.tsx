@@ -277,6 +277,7 @@ export default function App() {
             <CheckoutView
               cartItems={cartItems}
               appliedCoupon={appliedCoupon}
+              customers={customers}
               onBackToCart={() => setAppMode('store')}
               onOrderCompleted={(newOrder) => {
                 setOrders((prev) => [newOrder, ...prev]);
