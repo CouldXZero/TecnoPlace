@@ -43,7 +43,7 @@ import {
   Building
 } from 'lucide-react';
 import { Product, Order, Customer } from '../types';
-import { generateOrderPDF, generateSystemDocsPDF } from '../services/pdfGenerator';
+import { generateOrderPDF } from '../services/pdfGenerator';
 import { saveCustomerToFirestore, deleteCustomerFromFirestore } from '../services/firebaseStore';
 
 interface AdminPanelProps {
@@ -504,15 +504,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <Database className="w-4 h-4 text-slate-950 fill-amber-950/20" />
             <span>Base de Datos Firebase</span>
           </a>
-
-          <button
-            onClick={() => generateSystemDocsPDF()}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2 border border-blue-500 cursor-pointer active:scale-95"
-            title="Descargar Documentación Completa del Sistema en PDF"
-          >
-            <FileText className="w-4 h-4" />
-            <span>Descargar Doc. PDF</span>
-          </button>
 
           <div className="hidden lg:flex items-center gap-1.5 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800">
             <UserCheck className="w-4 h-4 text-emerald-600" />
